@@ -1,0 +1,66 @@
+
+variables:
+  openstack-origin:    &openstack-origin    distro
+  mojo_os_vip_10:      &mojo_os_vip_10      10.5.100.10
+  mojo_os_vip_02:      &mojo_os_vip_02      10.5.100.2
+  mojo_os_vip_03:      &mojo_os_vip_03      10.5.100.3
+  mojo_os_vip_01:      &mojo_os_vip_01      10.5.100.1
+  mojo_os_vip_06:      &mojo_os_vip_06      10.5.100.6
+  mojo_os_vip_07:      &mojo_os_vip_07      10.5.100.7
+  mojo_os_vip_04:      &mojo_os_vip_04      10.5.100.4
+  mojo_os_vip_05:      &mojo_os_vip_05      10.5.100.5
+  mojo_os_vip_08:      &mojo_os_vip_08      10.5.100.8
+  mojo_os_vip_09:      &mojo_os_vip_09      10.5.100.9
+applications:
+  swift-proxy:
+    charm: swift-proxy
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      zone-assignment: manual
+      replicas: 3
+      swift-hash: fdfef9d4-8b06-11e2-8ac0-531c923c8fae
+      vip: *mojo_os_vip_07
+  swift-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  swift-storage-z1:
+    charm: swift-storage
+    constraints: mem=1G
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+      zone: 1
+      block-device: vdb
+      overwrite: "true"
+      ephemeral-unmount: "/mnt"
+  swift-storage-z2:
+    charm: swift-storage
+    constraints: mem=1G
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+      zone: 2
+      block-device: vdb
+      overwrite: "true"
+      ephemeral-unmount: "/mnt"
+  swift-storage-z3:
+    charm: swift-storage
+    constraints: mem=1G
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+      zone: 3
+      block-device: vdb
+      overwrite: "true"
+      ephemeral-unmount: "/mnt"
+relations:
+  - [ swift-proxy, keystone ]
+  - [ swift-proxy, swift-storage-z1 ]
+  - [ swift-proxy, swift-storage-z2 ]
+  - [ swift-proxy, swift-storage-z3 ]
+  # HA
+  - [ swift-proxy, swift-hacluster ]

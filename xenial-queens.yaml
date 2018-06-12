@@ -1,0 +1,17 @@
+series: xenial
+variables:
+  openstack-origin:    &openstack-origin    cloud:xenial-queens
+applications:
+  # Remove MongoDB in Queens
+  mongodb:
+  designate:
+    charm: designate
+    options:
+      # TODO : Can we override only specific comfig options?
+      # openstack-origin: *openstack-origin
+      nova-domain: 'mojo.serverstack.com.'
+      neutron-domain: 'mojo.serverstack.com.'
+      nova-domain-email: 'bob@mojo.serverstack.com'
+      neutron-domain-email: 'bob@mojo.serverstack.com'
+      # nameservers: "ns1.mojo.serverstack.com."
+      # vip: "{{ MOJO_OS_VIP10 }}"

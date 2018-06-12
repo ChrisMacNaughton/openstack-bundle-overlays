@@ -1,0 +1,9 @@
+variables:
+  openstack-origin:    &openstack-origin    distro
+applications:
+  tempest:
+    charm: cs:~openstack-charmers-next/tempest
+    num_units: 1
+    constraints: mem=1G
+relations:
+  - [ keystone, tempest ]

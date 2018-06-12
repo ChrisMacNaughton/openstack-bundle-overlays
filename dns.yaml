@@ -1,0 +1,51 @@
+variables:
+  openstack-origin:    &openstack-origin    distro
+  mojo_os_vip_10:      &mojo_os_vip_10      10.5.100.10
+  mojo_os_vip_02:      &mojo_os_vip_02      10.5.100.2
+  mojo_os_vip_03:      &mojo_os_vip_03      10.5.100.3
+  mojo_os_vip_01:      &mojo_os_vip_01      10.5.100.1
+  mojo_os_vip_06:      &mojo_os_vip_06      10.5.100.6
+  mojo_os_vip_07:      &mojo_os_vip_07      10.5.100.7
+  mojo_os_vip_04:      &mojo_os_vip_04      10.5.100.4
+  mojo_os_vip_05:      &mojo_os_vip_05      10.5.100.5
+  mojo_os_vip_08:      &mojo_os_vip_08      10.5.100.8
+  mojo_os_vip_09:      &mojo_os_vip_09      10.5.100.9
+applications:
+  aodh:
+    charm: aodh
+    constraints: mem=1G
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+  designate:
+    charm: designate
+    num_units: 3
+    constraints: mem=1G
+    options:
+      openstack-origin: *openstack-origin
+      nova-domain: 'mojo.serverstack.com.'
+      neutron-domain: 'mojo.serverstack.com.'
+      nova-domain-email: 'bob@mojo.serverstack.com'
+      neutron-domain-email: 'bob@mojo.serverstack.com'
+      nameservers: "ns1.mojo.serverstack.com."
+      vip: *mojo_os_vip_10
+  designate-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  designate-bind:
+    num_units: 3
+    charm: designate-bind
+relations:
+  - [ aodh, rabbitmq-server ]
+  - [ aodh, mysql ]
+  - [ aodh, keystone ]
+  # designate <-> nova-compute needed for legacy notifications
+  - [ designate, keystone ]
+  - [ designate, mysql ]
+  - [ designate, rabbitmq-server ]
+  - [ designate, designate-bind ]
+  - [ designate, memcached ]
+  - [ designate, neutron-api ]
+  - [ designate, designate-hacluster ]

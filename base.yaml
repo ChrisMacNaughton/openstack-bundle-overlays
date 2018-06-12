@@ -1,0 +1,214 @@
+# Currently this is a "Designate HA" bundle, but it is the beginning of the Kitchen Sink.
+#
+# TODO:
+#         - Add SSL everywhere
+#         - Add HA everywhere
+#         - Add KSV3 everywhere
+#
+# Targeted only for the more modern sets of charms, thus the corresponding release
+# combos are limited to Trusty-Mitaka and later.  Releases earlier than Trusty-Mitaka
+# will be tested via legacy bundles as separate scenarios.
+
+variables:
+  openstack-origin:    &openstack-origin    distro
+  mojo_os_vip_10:      &mojo_os_vip_10      10.5.100.10
+  mojo_os_vip_02:      &mojo_os_vip_02      10.5.100.2
+  mojo_os_vip_03:      &mojo_os_vip_03      10.5.100.3
+  mojo_os_vip_01:      &mojo_os_vip_01      10.5.100.1
+  mojo_os_vip_06:      &mojo_os_vip_06      10.5.100.6
+  mojo_os_vip_07:      &mojo_os_vip_07      10.5.100.7
+  mojo_os_vip_04:      &mojo_os_vip_04      10.5.100.4
+  mojo_os_vip_05:      &mojo_os_vip_05      10.5.100.5
+  mojo_os_vip_08:      &mojo_os_vip_08      10.5.100.8
+  mojo_os_vip_09:      &mojo_os_vip_09      10.5.100.9
+applications:
+  mysql:
+    charm: percona-cluster
+    constraints: mem=1G
+    num_units: 3
+    options:
+      innodb-buffer-pool-size: 200M
+      sst-password: changeme
+      root-password: changeme
+      vip: *mojo_os_vip_01
+  mysql-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  rabbitmq-server:
+    charm: rabbitmq-server
+    num_units: 3
+    constraints: mem=1G
+  ceph-mon:
+    charm: ceph-mon
+    num_units: 3
+    options:
+      source: *openstack-origin
+      expected-osd-count: 3
+  ceph-osd:
+    charm: ceph-osd
+    constraints: mem=1G
+    num_units: 3
+    options:
+      source: *openstack-origin
+    storage:
+      osd-devices:  cinder,10G
+  ntp:
+    charm: ntp
+    num_units: 0
+  keystone:
+    charm: keystone
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      admin-password: openstack
+      admin-token: ubuntutesting
+      vip: *mojo_os_vip_02
+  keystone-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  openstack-dashboard:
+    charm: openstack-dashboard
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      vip: *mojo_os_vip_03
+  dashboard-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  nova-compute:
+    charm: nova-compute
+    num_units: 3
+    constraints: mem=4G
+    options:
+      openstack-origin: *openstack-origin
+      enable-live-migration: True
+      enable-resize: True
+      migration-auth-type: ssh
+  nova-cloud-controller:
+    charm: nova-cloud-controller
+    constraints: mem=2G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      network-manager: Neutron
+      vip: *mojo_os_vip_04
+  nova-cc-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  neutron-gateway:
+    charm: neutron-gateway
+    constraints: mem=4G
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+      instance-mtu: 1300
+      bridge-mappings: physnet1:br-ex
+  neutron-api:
+    charm: neutron-api
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      neutron-security-groups: True
+      flat-network-providers: physnet1
+      enable-ml2-dns: True
+      dns-domain: mojo.serverstack.
+      reverse-dns-lookup: True
+      ipv4-ptr-zone-prefix-size: 24
+      vip: *mojo_os_vip_09
+  neutron-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  neutron-openvswitch:
+    charm: neutron-openvswitch
+  cinder:
+    charm: cinder
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      block-device: "None"
+      glance-api-version: 2
+      vip: *mojo_os_vip_05
+  cinder-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  cinder-ceph:
+    charm: cinder-ceph
+  glance:
+    charm: glance
+    constraints: mem=1G
+    num_units: 3
+    options:
+      openstack-origin: *openstack-origin
+      vip: *mojo_os_vip_06
+  glance-hacluster:
+    charm: hacluster
+    options:
+      corosync_transport: unicast
+      cluster_count: 3
+  heat:
+    charm: heat
+    num_units: 1
+    options:
+      openstack-origin: *openstack-origin
+relations:
+  - [ keystone, mysql ]
+  - [ nova-cloud-controller, mysql ]
+  - [ nova-cloud-controller, rabbitmq-server ]
+  - [ nova-cloud-controller, glance ]
+  - [ nova-cloud-controller, keystone ]
+  - [ nova-compute, nova-cloud-controller ]
+  - - nova-compute
+    - rabbitmq-server:amqp
+  - [ nova-compute, glance ]
+  - [ nova-compute, ceph-mon ]
+  - [ glance, mysql ]
+  - [ glance, keystone ]
+  - [ glance, ceph-mon ]
+  - [ glance, "cinder:image-service" ]
+  - [ glance, rabbitmq-server ]
+  - [ cinder, mysql ]
+  - [ cinder, rabbitmq-server ]
+  - [ cinder, nova-cloud-controller ]
+  - [ cinder, keystone ]
+  - [ cinder, cinder-ceph ]
+  - [ cinder-ceph, ceph-mon ]
+  - [ neutron-gateway, nova-cloud-controller ]
+  - [ "openstack-dashboard:identity-service", keystone ]
+  - [ heat, mysql ]
+  - [ heat, keystone ]
+  - [ heat, rabbitmq-server ]
+  - [ "neutron-gateway:amqp", rabbitmq-server ]
+  - [ neutron-api, mysql ]
+  - [ neutron-api, rabbitmq-server ]
+  - [ neutron-api, nova-cloud-controller ]
+  - [ neutron-api, neutron-openvswitch ]
+  - [ neutron-api, keystone ]
+  - [ neutron-api, neutron-gateway ]
+  - [ neutron-openvswitch, nova-compute ]
+  - [ neutron-openvswitch, rabbitmq-server ]
+  - [ ceph-osd, ceph-mon ]
+  - [ ntp, ceph-osd ]
+  # HA
+  - [ mysql, mysql-hacluster ]
+  - [ keystone, keystone-hacluster ]
+  - [ openstack-dashboard, dashboard-hacluster ]
+  - [ nova-cloud-controller, nova-cc-hacluster ]
+  - [ cinder, cinder-hacluster ]
+  - [ glance, glance-hacluster ]
+  - [ neutron-api, neutron-hacluster ]

@@ -1,0 +1,11 @@
+series: trusty
+
+applications:
+  ceph-mon:
+    options:
+      source: cloud:trusty-mitaka
+  ceph-osd:
+    charm: ceph-osd
+    options:
+      source: cloud:trusty-mitaka
+  gnocchi:
